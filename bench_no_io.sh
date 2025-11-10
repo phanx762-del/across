@@ -75,6 +75,7 @@ speed_test() {
 
 speed() {
     speed_test '' 'Speedtest.net'
+    speed_test '23844' 'Wuhan, CN'  # 替换为武汉电信节点（China Telecom）
     speed_test '21541' 'Los Angeles, US'
     speed_test '43860' 'Dallas, US'
     speed_test '40879' 'Montreal, CA'
@@ -423,7 +424,7 @@ next
 print_system_info
 ipv4_info
 next
-#print_io_test
+
 next
 install_speedtest && speed && rm -fr speedtest-cli
 next
