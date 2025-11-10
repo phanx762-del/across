@@ -75,6 +75,8 @@ speed_test() {
 
 speed() {
     speed_test '' 'Speedtest.net'
+    speed_test '36387' 'Wuhan, CN'  # 替换为武汉电信节点（China Telecom）
+    speed_test '36387' 'Wuhan, CN'  # 新增武汉节点（中国联通）
     speed_test '21541' 'Los Angeles, US'
     speed_test '43860' 'Dallas, US'
     speed_test '40879' 'Montreal, CA'
