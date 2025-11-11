@@ -75,32 +75,74 @@ speed_test() {
 
 speed() {
     speed_test '' 'Speedtest.net'
+    speed_test '21541' 'Los Angeles, US'
+    speed_test '43860' 'Dallas, US'
+    speed_test '40879' 'Montreal, CA'
+    speed_test '61933' 'Paris, FR'
+    speed_test '28922' 'Amsterdam, NL'
+    speed_test '25858' 'Beijing, CN'
+    speed_test '24447' 'Shanghai, CN'
+    speed_test '60572' 'Guangzhou, CN'
+    speed_test '32155' 'Hong Kong, CN'
+    speed_test '13623' 'Singapore, SG'
+    speed_test '48463' 'Tokyo, JP'
 }
 
 speed_cn() {
-    # Discover additional China servers dynamically and test top matches
+    # Discover additional China servers dynamically and test top matches (with verbose logs)
+    echo " [CN] Discovering China servers via: speedtest -L"
     ./speedtest-cli/speedtest -L --accept-license --accept-gdpr > ./speedtest-cli/servers.log 2>&1
     if [ $? -ne 0 ]; then
+        echo " [CN] speedtest -L failed. See ./speedtest-cli/servers.log for details."
+        # Show last few lines for quick inspection
+        tail -n 20 ./speedtest-cli/servers.log 2>/dev/null
         return
     fi
+
+    # Match both 'China)' and ', CN)'
+    awk '/China\)|, CN\)/{print}' ./speedtest-cli/servers.log > ./speedtest-cli/servers_china.log
+    local china_total
+    china_total=$(wc -l < ./speedtest-cli/servers_china.log 2>/dev/null | sed "s/ //g")
+    [ -z "$china_total" ] && china_total=0
+    echo " [CN] Candidates found: ${china_total}"
+
+    if [ "$china_total" -eq 0 ]; then
+        echo " [CN] No lines matched China. Showing a few lines from servers.log to help debug:"
+        head -n 30 ./speedtest-cli/servers.log 2>/dev/null
+        return
+    else
+        echo " [CN] First 5 matching lines:"
+        head -n 5 ./speedtest-cli/servers_china.log 2>/dev/null
+    fi
+
     # Pick up to 10 China servers (unique by city when possible)
     local max_cnt=10
     local cnt=0
     local seen_cities=""
     while IFS= read -r line; do
-        # Extract server id
+        # Extract server id before ')'
         sid=$(echo "$line" | sed -n 's/^[[:space:]]*\([0-9][0-9]*\)).*/\1/p')
-        # Extract City inside parentheses before ", China"
+        # Extract City inside parentheses before ", China" or ", CN"
         city=$(echo "$line" | sed -n 's/.*(\([^,][^,]*\),[[:space:]]*China).*/\1/p')
+        if [ -z "$city" ]; then
+            city=$(echo "$line" | sed -n 's/.*(\([^,][^,]*\),[[:space:]]*CN).*/\1/p')
+        fi
         if [ -n "$sid" ] && [ -n "$city" ]; then
             # ensure unique city
             echo "$seen_cities" | grep -qi "|$city|" && continue
             seen_cities="${seen_cities}|${city}|"
+            echo " [CN] Testing ${city}, CN (server-id: ${sid})"
             speed_test "$sid" "${city}, CN"
             cnt=$((cnt + 1))
             [ $cnt -ge $max_cnt ] && break
         fi
-    done < <(awk '/China\)/{print}' ./speedtest-cli/servers.log)
+    done < ./speedtest-cli/servers_china.log
+
+    if [ $cnt -eq 0 ]; then
+        echo " [CN] No China servers were tested (could not extract id/city from matches)."
+    else
+        echo " [CN] Tested ${cnt} China server(s)."
+    fi
 }
 
 io_test() {
@@ -438,7 +480,7 @@ next
 print_system_info
 ipv4_info
 next
-print_io_test
+# print_io_test
 next
 install_speedtest && speed && speed_cn && rm -fr speedtest-cli
 next
